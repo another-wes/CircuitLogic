@@ -4,7 +4,8 @@ public class NOT extends OutPin{
 	private int[] xpts, ypts;
 	public NOT(int xx, int yy){	
 		super(xx, yy);
-		ins = new InPin[1];
+		ins=new InPin[1];
+		lines=new Line[1];
 		xpts= new int[]{xx,xx,xx+35};
 		ypts=new int[]{yy,yy+30,yy+15};
 		}
@@ -12,7 +13,7 @@ public class NOT extends OutPin{
 		ins[0] = one;
 	}	
 	public void draw(Graphics g){
-		g.setColor(is_on?Color.green:Color.red);
+		g.setColor(is_on?green_color:red_color);
 		g.fillPolygon(xpts,ypts,3);
 		g.setFont(new Font("Verdana", Font.PLAIN, 10));
 		g.setColor(Color.black);

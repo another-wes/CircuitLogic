@@ -3,10 +3,11 @@ import javax.swing.JOptionPane;
 public class NAND extends OutPin{
 	public NAND(int xx, int yy){	
 		super(xx, yy);
-		ins = new InPin[0];
+		ins=new InPin[2];
+		lines=new Line[2];
 	}
 	public void draw(Graphics g){
-		g.setColor(is_on?Color.green:Color.red);
+		g.setColor(is_on?green_color:red_color);
 		g.fillRect(x,y,25,50);
 		g.fillOval(x,y,50,50);
 		g.setFont(new Font("Verdana", Font.BOLD, 15));

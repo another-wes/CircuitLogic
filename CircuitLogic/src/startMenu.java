@@ -20,6 +20,19 @@ public class startMenu extends JFrame implements ActionListener, KeyListener{
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+	public static final String[] TOOLS = {
+	        "AND",
+	        "OR",
+	        "NAND",
+	        "NOR",
+	        "XOR",
+	        "2",
+	        "3",
+	        "X",
+	        "OUT",
+	        "REM"
+	    };
+	private Board board;
 	public ArrayList<String> bongo = new ArrayList<String>();
 	public JTextArea text = new JTextArea(10, 50);
 	public String[] visible_entries = new String[15]; 
@@ -37,6 +50,7 @@ public class startMenu extends JFrame implements ActionListener, KeyListener{
 	public startMenu(){
 		setSize(400,400);
 		setTitle("Circuit Logic Simulator: Select a Board!");
+		setBackground(Color.white);
 		label.setFont(new Font("Helvetica", Font.BOLD, 12));
 		index = 0;
 		AddButton.addActionListener(this);
@@ -158,10 +172,63 @@ public class startMenu extends JFrame implements ActionListener, KeyListener{
 		}
 	}
 	public void edit(String edittee){
+      	Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		JFrame frame = new JFrame( "Circuit Board" );
-		Board broad = new Board(edittee,frame);
-		frame.add(broad);
-		frame.setSize( 1200, 720 ); // set frame size
+		JMenuBar toolbar = new JMenuBar();
+		int w = 820;//(int)(screenSize.getWidth() * 55)/100;
+		int h = (int)(screenSize.getHeight() * 80)/100;  
+		board = new Board(edittee,frame,w,h);
+		frame.add(board);
+		JMenu addMenu = new JMenu("Add...");
+		JMenuItem andItem = new JMenuItem("AND Gate");
+		andItem.setActionCommand("AND");
+		andItem.addActionListener(this);
+		addMenu.add(andItem);
+		JMenuItem orItem = new JMenuItem("OR Gate");
+		orItem.setActionCommand("OR");
+		orItem.addActionListener(this);
+		addMenu.add(orItem);
+		JMenuItem nandItem = new JMenuItem("NAND Gate");//this will now truly delete the file
+		nandItem.setActionCommand("NAND");
+		nandItem.addActionListener(this);
+		addMenu.add(nandItem);
+		JMenuItem norItem = new JMenuItem("NOR Gate");
+		norItem.setActionCommand("NOR");
+		norItem.addActionListener(this);
+		addMenu.add(norItem);
+		JMenuItem xorItem = new JMenuItem("XOR Gate");
+		xorItem.setActionCommand("XOR");
+		xorItem.addActionListener(this);
+		addMenu.add(xorItem);
+		JMenuItem mult2Item = new JMenuItem("2-to-1 Multiplexer");
+		mult2Item.setActionCommand("2");
+		mult2Item.addActionListener(this);
+		addMenu.add(mult2Item);
+		JMenuItem mult3Item = new JMenuItem("3-to-1 Multiplexer");
+		mult3Item.setActionCommand("3");
+		mult3Item.addActionListener(this);
+		addMenu.add(mult3Item);
+		JMenuItem notItem = new JMenuItem("Inverter (NOT Gate)");
+		notItem.setActionCommand("X");
+		notItem.addActionListener(this);
+		toolbar.add(addMenu);
+		JMenu editMenu = new JMenu("Edit");
+		JMenuItem attachItem = new JMenuItem("Connect output pin (RHS)");
+		attachItem.setActionCommand("OUT");
+		attachItem.addActionListener(this);
+		editMenu.add(attachItem);
+		JMenuItem removeItem = new JMenuItem("Remove gate");
+		removeItem.setActionCommand("REM");
+		removeItem.addActionListener(this);
+		editMenu.add(removeItem);
+		toolbar.add(editMenu);
+		toolbar.add(Box.createHorizontalGlue());
+		JMenuItem saveItem = new JMenuItem("Save");
+		saveItem.setMaximumSize(saveItem.getPreferredSize() );
+		toolbar.add(saveItem);
+		frame.add(toolbar,BorderLayout.NORTH);
+        frame.setPreferredSize(new Dimension(w, h+toolbar.getHeight()));
+        frame.setSize(w, h+toolbar.getHeight());
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);;
 		frame.setVisible( true ); // display frame
 	}
@@ -251,6 +318,13 @@ public class startMenu extends JFrame implements ActionListener, KeyListener{
 	public void actionPerformed(ActionEvent e) {
 		// TODO Auto-generated method stub
 		selection = slits.getSelectedIndex()+index;
+		for (int i=0;i<10;i++) {
+		    if (TOOLS[i].equals(e.getActionCommand())) {
+		        board.pushIt(i);
+				board.repaint();
+		        return;
+		    }
+		}
 		switch(e.getActionCommand()){
 			case "N": 	addOne();
 						break;
@@ -259,8 +333,18 @@ public class startMenu extends JFrame implements ActionListener, KeyListener{
 			case "D":	try {remove();}
 						catch (IOException e1){e1.printStackTrace();}
 						break;
-			case "R":	try{clear();}
-						catch (IOException e1){e1.printStackTrace();}
+			case "R":	try{
+							clear();
+						}
+						catch (IOException e1){
+							e1.printStackTrace();
+						}
+			case "AND":	try{
+					board.pushIt(0);
+				}
+				catch (Exception e1){
+					e1.printStackTrace();
+				}
 			default:	refresh();
 		}
 	}

@@ -5,7 +5,9 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 
-public class Options{
+import javax.swing.JToolBar;
+
+public class Options extends JToolBar{
 	public Options(){
 		return;
 	}

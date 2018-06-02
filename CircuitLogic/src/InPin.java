@@ -3,6 +3,8 @@ import java.util.ArrayList;
 
 public class InPin{
 	protected int x,y;
+	public static final Color red_color = new Color(232, 36, 54); //much nicer than Color.red
+	public static final Color green_color = new Color(125,255,125); //prettier than Color.green, in my opinion
 	protected boolean is_on;
 	public boolean rotated=false; //not really used anymore
 	//public boolean flipped=false; could reimplement in later version
@@ -19,7 +21,7 @@ public class InPin{
 		is_on = src.is_on;
 	}
 	public void draw(Graphics g){//no longer accounts for rotation;
-		g.setColor(is_on?Color.green:Color.red);
+		g.setColor(is_on?green_color:red_color);
 		g.fillRect(10,y,40,21);
 		g.fillPolygon(new int[]{50,60,50},new int[]{y,y+10,y+20},3);
 		if (name != null){

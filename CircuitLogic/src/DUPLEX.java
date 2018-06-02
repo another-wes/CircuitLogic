@@ -4,6 +4,7 @@ public class DUPLEX extends OutPin{
 	public DUPLEX(int xx, int yy){	
 		super(xx, yy);
 		ins = new InPin[2];
+		lines = new Line[2];
 		switchy = 0;
 	}
 	public void attach_in(InPin one, InPin two){
@@ -11,9 +12,9 @@ public class DUPLEX extends OutPin{
 		ins[1] = two;
 	}	
 	public void draw(Graphics g){
-		g.setColor(Color.green);
+		g.setColor(green_color);
 		g.fillRect(x,y + (30 * switchy),30,30);	
-		g.setColor(Color.red);
+		g.setColor(red_color);
 		g.fillRect(x,(int) (y + (30 * Math.pow(switchy - 1,2))),30,30);
 	}
 	public boolean check(){

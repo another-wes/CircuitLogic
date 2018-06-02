@@ -24,29 +24,30 @@ public class Board extends JPanel
 	public ArrayList<OutPin> gates; //should probably switch to protected
 	private ArrayList<OutPin> switchables;
 	private ArrayList<OutPin> outputs;
+	private ArrayList<Line> paths;
 //	private boolean placing=false; //Replaces with integer check
 	private Image backBuffer;
 	private Graphics gBackBuffer;
 //	private final Semaphore available = new Semaphore(0, true);//for placing objects with mouse I guess
-//	private int xx=0,yy=0;//now they've been initialized
-	private int mode,to_place=0;//probably gonna use this instead of placing if semaphores are weird
-	private Options toolbar; //begins at 680?
+	private int ogap,vgap,mode,to_place=0;
 	public JFrame frame;
-	boolean isInitialized;
+	private boolean initialized, needs_check = false;
 	private InPin[] selections;//clicked inputs
 	private OutPin selection=null;//clicked outpin
-	public Board(String filename, JFrame application)
+	public Board(String filename, JFrame application,int w, int h)
     {
 		frame=application;
-		toolbar=new Options();
-    	isInitialized=false;
+    	initialized=false;
     	inputs = new ArrayList<InPin>();
 		gates = new ArrayList<OutPin>();
 		switchables =  new ArrayList<OutPin>();
 		outputs = new ArrayList<OutPin>();
+		paths = new ArrayList<Line>();
+		ogap = w - 50;
+		vgap = ((h-30)/16); // used for input and output placement. 30 is the combined height of the upper and lower margins and bottom pin.
 		for (int i=0; i<16; i++) {
-			inputs.add(new InPin(10,3 + (42 * i)));
-			outputs.add(new OutPin(1100,3 + (42 * i)));	
+			inputs.add(new InPin(10,3 + (vgap* i))); //calculated gap
+			outputs.add(new OutPin(ogap,3+(vgap* i)));	
 		}
         // handle mouse and mouse motion events
         if (filename!=""){
@@ -61,14 +62,13 @@ public class Board extends JPanel
 				e.printStackTrace();
 				JOptionPane.showMessageDialog(frame, "The selected file was improperly formatted!");
 			}
-    	}this.addMouseListener(this);
+    	}
+        this.addMouseListener(this);
         this.addMouseMotionListener(this);
     }
 	void init()//initial state
     {
-		for (int i=0; i<16; i++) {
-			outputs.get(i).check();
-		}	
+		for (int i=0; i<16; i++) outputs.get(i).check();
 		// create the back buffer
 		backBuffer = createImage(getSize().width, getSize().height);
 		gBackBuffer = backBuffer.getGraphics();
@@ -149,8 +149,9 @@ public class Board extends JPanel
 			stringToWires(line.split(","),outputs);
 			line=in.nextLine();
 		}
+		for (int o=0; o<16; o++) outputs.get(o).traceback(paths);
 	}
-	public void save() throws IOException{
+	public void save() throws IOException{ //NEEDS REWORKING
 		String s = (String)JOptionPane.showInputDialog(frame,"What is the name of this board?");
 		if (s==null)return;
 		PrintWriter writer;
@@ -181,38 +182,39 @@ public class Board extends JPanel
 	public void paintComponent( Graphics g )
     {
         super.paintComponent(g); // clears drawing area
-    	if (!isInitialized) {
-    		isInitialized=true;
+    	if (!initialized) {
+    		initialized=true;
     		init();
     	}
     	//gBackBuffer.setFont(BOLD);
 		gBackBuffer.setColor(Color.white);
-		gBackBuffer.clearRect(0, 0, 800, 700);
+		gBackBuffer.clearRect(0, 0, frame.getWidth(), frame.getHeight());
 		for (int i=0; i<16; i++) {
 			inputs.get(i).draw(gBackBuffer);
 		}
 		for (int i=0; i<switchables.size(); i++) {
 			switchables.get(i).draw(gBackBuffer);
-			//switchables.get(i).traceback(gBackBuffer);
+			//switchables.get(i).traceback(gBackBuffer,paths));
 		}
 		for (int i=0; i<gates.size(); i++) {
 			gates.get(i).draw(gBackBuffer);
-			gates.get(i).traceback(gBackBuffer);
+			//gates.get(i).traceback(gBackBuffer,paths);
 		}
 		for (int i=0; i<switchables.size(); i++) {
 			switchables.get(i).draw(gBackBuffer);
-			switchables.get(i).traceback(gBackBuffer);
+			//switchables.get(i).traceback(gBackBuffer,paths);
 		}
 		for (int i=0; i<16; i++) {
-			outputs.get(i).check();
 			outputs.get(i).draw(gBackBuffer);
-			outputs.get(i).traceback(gBackBuffer);
+			//outputs.get(i).traceback(gBackBuffer,paths);
 		}
-		toolbar.draw(gBackBuffer);
+		for (int i=0; i<paths.size(); i++) {
+			paths.get(i).draw(gBackBuffer);
+		}
 		g.drawImage(backBuffer, 0, 0, null);
     } // end method paintComponent
 	public InPin Finder(int x, int y){//determine the clicked input
-    	if (x<60)return inputs.get(Math.min(((Math.max(0,y-3))/42),15));
+    	if (x<60)return inputs.get(Math.min(((Math.max(0,y-3))/vgap),15));
 //		for (int i=0; i<16; i++) {
 //			InPin p=inputs.get(i);
 //			if (inputs.get(i).hitTest(x,y)) return p { //this means you should probably put Multiplexers in inputs
@@ -234,8 +236,8 @@ public class Board extends JPanel
     	return null; //If no output-ready component underlies the clicked point, this return will cause the process to restart
     }
 	public OutPin outFinder(int x, int y){//determine the clicked input
-    	if (x>=1100){
-			OutPin s=outputs.get(Math.min(((Math.max(0,y-3))/42),15));
+    	if (x>=ogap){
+			OutPin s=outputs.get(Math.min(((Math.max(0,y-3))/vgap),15));
 			to_place=2;
 			return s;
 		}
@@ -255,61 +257,63 @@ public class Board extends JPanel
     	}
 		return null; //If no component underlies the clicked point, this return will cause the process to restart
     }
-	public OutPin Findelete(int x, int y){//determine the clicked input
+	public OutPin finDelete(int x, int y){//determine the clicked input
     	for (int i=0; i<gates.size(); i++){
     		OutPin r=gates.get(i);
     		if (r.hitTest(x,y)){
     			r.detach();
-    			r.detach_in();
+    			r.detach_in(paths);
     			return gates.remove(i);
     		}
     	}	
-    	for (int i=0; i<switchables.size(); i++){
+    	for (int i=0; i<switchables.size(); i++) {
     		OutPin r=switchables.get(i);
-    		if (r.hitTest(x,y)){
+    		if (r.hitTest(x,y)) {
     			r.detach();
-    			r.detach_in();
+    			r.detach_in(paths);
     			return switchables.remove(i);
-    			}
     		}
+    	}
     	return null; //If no output-ready component underlies the clicked point, this return will cause the process to restart
     }
 	public void dropIt(int x, int y){//just 0-7
-    	OutPin improved;
+    	OutPin pin_to_drop;
 		switch(mode){
-			case 0:	improved=new AND(x,y);
+			case 0:	pin_to_drop=new AND(x,y);
 					break;
-			case 1:	improved = new OR(x,y);
+			case 1:	pin_to_drop = new OR(x,y);
 					break;
-			case 2:	improved = new NAND(x,y);
+			case 2:	pin_to_drop = new NAND(x,y);
 					break;
-			case 3:	improved = new NOR(x,y);
+			case 3:	pin_to_drop = new NOR(x,y);
 					break;		
-    		case 4: improved = new XOR(x,y);
+    		case 4: pin_to_drop = new XOR(x,y);
         			break;
-    		case 5: improved = new DUPLEX(x,y);
+    		case 5: pin_to_drop = new DUPLEX(x,y);
     				break;
-    		case 6:	improved = new TRIPLEX(x,y);//TRIPLEX
+    		case 6:	pin_to_drop = new TRIPLEX(x,y);//TRIPLEX
     				break;
-    		default:improved = new NOT(x,y);//NOT
+    		default:pin_to_drop = new NOT(x,y);//NOT
 					break;
     	}
 		switch(selections.length){
-    			case 1: improved.attach_in(selections[0]);
+    			case 1: pin_to_drop.attach_in(selections[0]);
     					break;
-    			case 2: improved.attach_in(selections[0],selections[1]);
+    			case 2: pin_to_drop.attach_in(selections[0],selections[1]);
     					break;
-    			case 3: improved.attach_in(selections[0],selections[1],selections[2]);
+    			case 3: pin_to_drop.attach_in(selections[0],selections[1],selections[2]);
     					break;
-    			case 4: improved.attach_in(selections[0],selections[1],selections[2],selections[3]);
+    			case 4: pin_to_drop.attach_in(selections[0],selections[1],selections[2],selections[3]);
     					break;
     	}
-		improved.check();//just making sure it's the right color!
-    	if ((mode==5)||(mode==6))switchables.add(improved);
-    	else gates.add(improved);
+		pin_to_drop.traceback(paths);
+		needs_check = true;
+		pin_to_drop.check();//just making sure it's the right color!
+    	if ((mode==5)||(mode==6))switchables.add(pin_to_drop);
+    	else gates.add(pin_to_drop);
 	}
-	public void pushIt(int i){//mainly here to
-		if (i==11)return;//I originally had 12 buttons, but fewer features.  I've left the space in case anything else could use implementing
+	public void pushIt(int i){
+		if (i==11)return;
 		mode=i;
 		if (i<5){
 			String[] options = new String[] {"Two","Three","Four"};//XOR
@@ -318,10 +322,10 @@ public class Board extends JPanel
 	        null, options, options[0]);
 		}
 		else switch(i){
-    		case 5: JOptionPane.showMessageDialog(frame, "Select 2 inputs, preferably starting from the top.");
+    		case 5: JOptionPane.showMessageDialog(frame, "Select 2 inputs to multiplex.");
     				to_place=3; //DUPLEX
     				break;
-    		case 6: JOptionPane.showMessageDialog(frame, "Select 3 inputs, preferably starting from the top.");
+    		case 6: JOptionPane.showMessageDialog(frame, "Select 3 inputs to multiplex.");
     				to_place=4;//TRIPLEX
     				break;
     		case 7:	JOptionPane.showMessageDialog(frame, "Select the gate or pin to be inverted.");
@@ -338,6 +342,25 @@ public class Board extends JPanel
     				return; //prevents NegativeArraySizeException
     	}
 		selections=new InPin[to_place-1];
+	}
+	public void checkCollisions(int i)
+	{
+		for (int j = 0; j < paths.size(); j++) {
+			if (j!=i) paths.get(i).consolidateWith(paths.get(j));
+		}
+	}
+	public void checkCollisions()
+	{
+		boolean go_further = false; //will turn true if any collisions needed to be fixed
+		do {
+			go_further = false;
+			for (int i = 0; i < paths.size(); i++) {
+				for (int j = i+1; j < paths.size(); j++) {
+					go_further |= paths.get(i).consolidateWith(paths.get(j));
+				}
+			}
+		} while (go_further); //will not exit until all collisions resolved
+		
 	}
 	public void showDialog(){//happens for cases 0-6
 		String[] msg = {"AND gate","OR gate","NAND gate","NOR gate","exclusive OR (modulo-2) gate","multiplexer","multiplexer","inverter"};
@@ -358,7 +381,7 @@ public class Board extends JPanel
         			}
         		}
     		}
-    		else if (e.getX()>=1100){
+    		else if (e.getX()>=ogap){
     			for (int i=0; i<16; i++) {
         			OutPin p=outputs.get(i);
         			if (p.hitTest(e.getX(), e.getY())) { //this means you should probably put Multiplexers in inputs
@@ -372,7 +395,7 @@ public class Board extends JPanel
     	}
     	if (to_place==1){
     		if (mode==9){
-    			Findelete(e.getX(),e.getY());
+    			finDelete(e.getX(),e.getY());
     			to_place=0;
     		}
     		else{
@@ -394,7 +417,8 @@ public class Board extends JPanel
             			else if (selections.length==2)selection.attach_in(selections[0],selections[1]);
             			else if (selections.length==3)selection.attach_in(selections[0],selections[1],selections[2]);
                 		else selection.attach_in(selections[0],selections[1],selections[2],selections[3]);
-            			selection=null;
+            			selection.traceback(paths);
+        				selection=null;
             			to_place=0;
         			}
     			}
@@ -409,7 +433,7 @@ public class Board extends JPanel
     		
     	}
 		// check 'em
-    	else if (e.getY()<654){
+    	else if (e.getY()<getHeight()){
     		for (int i=0; i<16; i++) {
     			InPin p=inputs.get(i);
     			if (p.hitTest(e.getX(), e.getY())) { //this means you should probably put Multiplexers in inputs
@@ -426,7 +450,7 @@ public class Board extends JPanel
     				return;
     			}
     		}
-    	} else pushIt(e.getX()/100);
+    	};
     		
     }
     
@@ -436,6 +460,9 @@ public class Board extends JPanel
     	for (int i=0; i<16; i++)outputs.get(i).check();
     	for (int i=0; i<switchables.size(); i++)switchables.get(i).check();
     	for (int i=0; i<gates.size(); i++) gates.get(i).check();
+		for (int i=0; i<16; i++) outputs.get(i).check();
+		if (needs_check) checkCollisions();
+		needs_check = false;
 		repaint();//originally was in loops
     }
 
